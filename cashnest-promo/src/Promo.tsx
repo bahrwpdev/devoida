@@ -1,63 +1,31 @@
 import React from "react";
-import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Fonts } from "./Fonts";
-import {
-  IconOrbit,
-  Logo,
-  StartPill,
-  bottomFade,
-  logoFade,
-} from "./Splash";
-import {
-  AddSplitScreen,
-  CaptureSheet,
-  ExpensesScreen,
-  ReviewSheet,
-  SplitsScreen,
-} from "./screens/screens";
-import { NavBar, Popup } from "./ui/kit";
-import { Icon } from "./ui/Icon";
-import { C, H, W, clamp01, easeInOut, easeOut, easeOutCubic, ink, inter, prog } from "./tokens";
+import { IconOrbit, Logo, StartPill } from "./Splash";
+import { DetailsScreen, HomeScreen, LockScreen, Pop, useSpring } from "./screens/app";
+import { C, H, W, clamp01, easeInOut, easeOutCubic, ink, inter, prog } from "./tokens";
 
-/** Splash/app logical size -> canvas. 844 logical px = full video height. */
-const SPLASH_SCALE = H / 844; // 2.275
-/** Phone: logical 390x844 screen scale inside the device mock. */
-const PS = 1.88;
+const SPLASH_SCALE = H / 844; // the splash's logical-to-canvas scale
+const PS = 1.88; // phone screen scale (390 logical px -> canvas)
 const PHONE_TOP = 285;
 
-export const DURATION = 1080;
+export const DURATION = 450; // 15 s
 
-/** Timeline in frames at 30 fps (one place to retime the whole video). */
+/** Whole timeline, in frames at 30 fps. */
 const T = {
-  splashPress: 70,
-  hookIn: 104,
-  phoneIn: [172, 214] as const,
-  popupIn: 232,
-  popupOut: 298,
-  sheetIn: [318, 345] as const,
-  amount: [334, 356] as const,
-  merchant: [340, 364] as const,
-  category: [370, 380] as const,
-  tapAdd: 440,
-  sheetOut: [452, 474] as const,
-  rowIn: [470, 496] as const,
-  tapNav: 545,
-  navMove: [548, 563] as const,
-  tapFab: 598,
-  pushIn: [610, 634] as const,
-  billAmount: [644, 672] as const,
-  tax: [680, 692] as const,
-  tip: [698, 710] as const,
-  people: [716, 728, 740] as const,
-  tapReview: 774,
-  reviewIn: [786, 812] as const,
-  tapConfirm: 854,
-  reviewOut: [866, 888] as const,
-  splitRow: [888, 912] as const,
-  savedIn: 892,
-  savedOut: 944,
-  phoneOut: [940, 978] as const,
-  outro: 950,
+  phoneIn: 26,
+  sms: 16,
+  detect: 60,
+  tapNotif: 92,
+  toHome: [96, 112] as const,
+  homeT0: 98,
+  rowAt: 124,
+  tapRow: 192,
+  reveal: [194, 212] as const,
+  detailsT0: 198,
+  totalPulse: 262,
+  phoneOut: [300, 336] as const,
+  outro: 312,
 };
 
 const bump = (f: number, a: number, dur = 10) => {
@@ -65,191 +33,151 @@ const bump = (f: number, a: number, dur = 10) => {
   return t <= 0 || t >= 1 ? 0 : Math.sin(Math.PI * t);
 };
 
-/* ------------------------------------------------------------------ */
-/* Tap marker: where the finger lands on the phone screen              */
-/* ------------------------------------------------------------------ */
-const TAPS = [
-  { f: T.tapAdd, x: 248, y: 794 },
-  { f: T.tapNav, x: 240, y: 792 },
-  { f: T.tapFab, x: 339, y: 675 },
-  { f: T.tapReview, x: 248, y: 794 },
-  { f: T.tapConfirm, x: 248, y: 794 },
+/* ------------------------------ camera ------------------------------ */
+/** A screen magnifier inside the phone: focus point (logical px) + zoom. */
+const CAM: [number, number, number, number][] = [
+  [0, 1, 195, 422],
+  [14, 1, 195, 422],
+  [40, 1.1, 195, 352],
+  [58, 1.1, 195, 352],
+  [82, 1.13, 195, 400],
+  [94, 1.13, 195, 405],
+  [112, 1, 195, 422],
+  [118, 1, 195, 422],
+  [138, 1.12, 195, 345],
+  [148, 1.12, 195, 345],
+  [170, 1.1, 195, 215],
+  [184, 1.04, 195, 300],
+  [192, 1.04, 195, 330],
+  [206, 1.04, 195, 300],
+  [226, 1.07, 195, 300],
+  [250, 1.09, 195, 400],
+  [272, 1.09, 195, 400],
+  [296, 1, 195, 422],
 ];
+const camAt = (f: number) => {
+  const ease = Easing.bezier(0.65, 0, 0.35, 1);
+  const frames = CAM.map((k) => k[0]);
+  const v = (i: number) => interpolate(f, frames, CAM.map((k) => k[i]), {
+    easing: ease,
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const sc = v(1);
+  // never pan past the screen edge
+  const x = Math.min(390 - 195 / sc, Math.max(195 / sc, v(2)));
+  const y = Math.min(844 - 422 / sc, Math.max(422 / sc, v(3)));
+  return { s: sc, x, y };
+};
 
+/* ------------------------------ taps ------------------------------ */
+const TAPS = [
+  { f: T.tapNotif, x: 195, y: 432 },
+  { f: T.tapRow, x: 195, y: 358 },
+];
 const TapMarker: React.FC<{ f: number }> = ({ f }) => (
   <>
     {TAPS.map((tp, i) => {
-      const t = clamp01((f - (tp.f - 6)) / 22);
+      const t = clamp01((f - (tp.f - 4)) / 18);
       if (t <= 0 || t >= 1) return null;
-      const grow = easeOutCubic(t);
-      const a = t < 0.25 ? t / 0.25 : 1 - (t - 0.25) / 0.75;
+      const g = easeOutCubic(t);
+      const a = t < 0.2 ? t / 0.2 : 1 - (t - 0.2) / 0.8;
+      const r = 20 + 26 * g;
       return (
-        <div key={i} style={{ position: "absolute", left: tp.x, top: tp.y, width: 0, height: 0 }}>
-          <div
-            style={{
-              position: "absolute",
-              left: -26 * (0.7 + 0.8 * grow),
-              top: -26 * (0.7 + 0.8 * grow),
-              width: 52 * (0.7 + 0.8 * grow),
-              height: 52 * (0.7 + 0.8 * grow),
-              borderRadius: "50%",
-              border: `2px solid ${ink(0.35)}`,
-              background: ink(0.1),
-              opacity: a,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: -9,
-              top: -9,
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: ink(0.35),
-              opacity: a,
-            }}
-          />
+        <div key={i} style={{ position: "absolute", left: tp.x, top: tp.y, width: 0, height: 0, zIndex: 50 }}>
+          <div style={{ position: "absolute", left: -r, top: -r, width: r * 2, height: r * 2, borderRadius: "50%", border: `2px solid ${ink(0.4)}`, background: ink(0.12), opacity: a }} />
+          <div style={{ position: "absolute", left: -8, top: -8, width: 16, height: 16, borderRadius: "50%", background: ink(0.4), opacity: a }} />
         </div>
       );
     })}
   </>
 );
 
-/* ------------------------------------------------------------------ */
-/* The app, driven by the global frame                                 */
-/* ------------------------------------------------------------------ */
+/* --------------------------- app inside phone --------------------------- */
 const PhoneApp: React.FC<{ f: number }> = ({ f }) => {
-  // Expenses -> Splits
-  const navIdx = 1 + prog(f, ...T.navMove, easeInOut);
-  const toSplits = prog(f, T.navMove[0] + 4, T.navMove[1] + 8, easeOut);
+  const sp = useSpring();
+  const cam = camAt(f);
 
-  // Add split (pushed from the right)
-  const push = prog(f, ...T.pushIn) - prog(f, T.reviewOut[0] + 4, T.reviewOut[1] + 4);
-  const pushAmt = Math.max(0, push);
-
-  // Sheets
-  const capIn = prog(f, ...T.sheetIn);
-  const capOut = prog(f, ...T.sheetOut, easeInOut);
-  const capY = (1 - capIn) * 105 + capOut * 105;
-  const revIn = prog(f, ...T.reviewIn);
-  const revOut = prog(f, ...T.reviewOut, easeInOut);
-  const revY = (1 - revIn) * 105 + revOut * 105;
-  const barrier = 0.45 * (Math.min(capIn, 1 - capOut) + Math.min(revIn, 1 - revOut));
-
-  // Capture content
-  const amount = 6.85 * prog(f, ...T.amount);
-  const typed = Math.round(9 * prog(f, ...T.merchant, (x) => x));
-  const caret = f % 16 < 9 && typed < 9 && f > T.merchant[0] ? "|" : "";
-  const merchant = "Starbucks".slice(0, typed) + caret;
-  const selected = prog(f, ...T.category, easeOut);
-
-  // Add split content
-  const billAmount = 86.4 * prog(f, ...T.billAmount);
-  const taxT = prog(f, ...T.tax);
-  const tipT = prog(f, ...T.tip);
-  const total = billAmount + 7.2 * taxT + 9 * tipT;
-  const ppl = T.people.map((s) => prog(f, s, s + 12));
-  const share = total / 3;
-
-  // Popups
-  const smsT = prog(f, T.popupIn, T.popupIn + 16) - prog(f, T.popupOut, T.popupOut + 14, easeInOut);
-  const savedT = prog(f, T.savedIn, T.savedIn + 16) - prog(f, T.savedOut, T.savedOut + 14, easeInOut);
+  // lock -> home zoom-through
+  const thr = prog(f, ...T.toHome, easeInOut);
+  const homeIn = prog(f, T.toHome[0] + 2, T.toHome[1] + 4, easeOutCubic);
+  // home -> details radial reveal from the tapped row
+  const rev = prog(f, ...T.reveal, easeOutCubic);
 
   return (
-    <div style={{ position: "absolute", inset: 0, background: C.page, overflow: "hidden" }}>
-      {/* tab screens */}
-      <div style={{ position: "absolute", inset: 0, opacity: 1 - toSplits }}>
-        <ExpensesScreen newRow={prog(f, ...T.rowIn)} />
-      </div>
-      <div style={{ position: "absolute", inset: 0, opacity: toSplits }}>
-        <SplitsScreen newRow={prog(f, ...T.splitRow)} fabPressed={bump(f, T.tapFab, 12)} />
-      </div>
-
-      {/* nav bar slides away while a form is open */}
-      <div
-        style={{
-          position: "absolute",
-          left: 14,
-          bottom: 18,
-          transform: `translateY(${pushAmt * 140}px)`,
-        }}
-      >
-        <NavBar index={navIdx} />
-      </div>
-
-      {/* add split bill, pushed over the list */}
-      {pushAmt > 0 && (
-        <div style={{ position: "absolute", inset: 0, transform: `translateX(${(1 - pushAmt) * 390}px)` }}>
-          <AddSplitScreen
-            amount={billAmount}
-            tax={7.2}
-            taxT={taxT}
-            tip={9}
-            tipT={tipT}
-            total={total}
-            people={ppl}
-            share={share}
-            reviewPressed={bump(f, T.tapReview, 12)}
-          />
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: 390,
+        height: 844,
+        transformOrigin: "0 0",
+        transform: `translate(${195 - cam.x * cam.s}px, ${422 - cam.y * cam.s}px) scale(${cam.s})`,
+      }}
+    >
+      {thr < 1 && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 1 - thr,
+            transform: `scale(${1 + 0.35 * thr})`,
+            transformOrigin: "50% 50%",
+            filter: `blur(${thr * 8}px)`,
+          }}
+        >
+          <LockScreen f={f} sms={sp(f, T.sms)} detect={sp(f, T.detect)} glow={bump(f, 62, 26)} />
         </div>
       )}
-
-      {/* barrier + sheets */}
-      {barrier > 0.001 && (
-        <div style={{ position: "absolute", inset: 0, background: `rgba(6,16,35,${barrier})` }} />
-      )}
-      {capIn > 0 && capOut < 1 && (
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, transform: `translateY(${capY}%)` }}>
-          <CaptureSheet amount={amount} merchant={merchant} selected={selected} addPressed={bump(f, T.tapAdd, 12)} />
+      {thr > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: homeIn,
+            transform: `scale(${(0.86 + 0.14 * homeIn) * (1 - 0.05 * rev)})`,
+            transformOrigin: "50% 50%",
+            filter: `brightness(${1 - 0.12 * rev})`,
+          }}
+        >
+          <HomeScreen f={f} t0={T.homeT0} rowAt={T.rowAt} glow={bump(f, T.rowAt + 4, 30)} />
         </div>
       )}
-      {revIn > 0 && revOut < 1 && (
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, transform: `translateY(${revY}%)` }}>
-          <ReviewSheet confirmPressed={bump(f, T.tapConfirm, 12)} />
+      {rev > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            clipPath: `circle(${rev * 1000}px at 195px 358px)`,
+            transform: `scale(${1.05 - 0.05 * rev})`,
+            transformOrigin: "195px 358px",
+          }}
+        >
+          <DetailsScreen f={f} t0={T.detailsT0} totalPulse={bump(f, T.totalPulse, 16)} />
         </div>
       )}
-
-      {/* popups (slide down from the top) */}
-      {smsT > 0.001 && (
-        <div style={{ position: "absolute", left: 0, right: 0, top: 54, transform: `translateY(${(1 - smsT) * -130}px)`, opacity: smsT }}>
-          <Popup
-            tile={C.ink}
-            glyph={<Icon name="sms" size={20} color={C.white} />}
-            title="Bank message"
-            message="Purchase $6.85 at STARBUCKS, card ending 4821."
-          />
-        </div>
-      )}
-      {savedT > 0.001 && (
-        <div style={{ position: "absolute", left: 0, right: 0, top: 54, transform: `translateY(${(1 - savedT) * -130}px)`, opacity: savedT }}>
-          <Popup
-            tile={C.red}
-            glyph={<Icon name="split" size={20} color={C.white} />}
-            title="Split saved"
-            message="Dinner at Nobu, 3 people, $34.20 each."
-          />
-        </div>
-      )}
-
       <TapMarker f={f} />
     </div>
   );
 };
 
-/* ------------------------------------------------------------------ */
-/* Device mock                                                         */
-/* ------------------------------------------------------------------ */
-const Phone: React.FC<{ f: number; y: number }> = ({ f, y }) => {
+/* ------------------------------ device ------------------------------ */
+const Phone: React.FC<{ f: number }> = ({ f }) => {
   const bezel = 14;
   const sw = 390 * PS;
   const sh = 844 * PS;
+  const enter = prog(f, 0, T.phoneIn, Easing.out(Easing.cubic));
+  const exit = prog(f, ...T.phoneOut, Easing.in(Easing.cubic));
+  const idle = enter >= 1 && exit === 0 ? 1 : 0;
+  const floatY = Math.sin(f / 22) * 5 * idle;
+  const tilt = Math.sin(f / 31) * 0.5 * idle;
   return (
     <div
       style={{
         position: "absolute",
         left: (W - (sw + bezel * 2)) / 2,
-        top: PHONE_TOP + y,
+        top: PHONE_TOP,
         width: sw + bezel * 2,
         height: sh + bezel * 2,
         boxSizing: "border-box",
@@ -257,221 +185,126 @@ const Phone: React.FC<{ f: number; y: number }> = ({ f, y }) => {
         borderRadius: 112,
         background: "#0E1A26",
         boxShadow: `0 50px 110px rgba(17,45,65,0.28), 0 0 0 3px rgba(255,255,255,0.9) inset, 0 0 0 2px rgba(17,45,65,0.15)`,
+        transform: `perspective(2600px) translateY(${(1 - enter) * 1500 + exit * 1900 + floatY}px) rotateX(${(1 - enter) * 16}deg) rotateZ(${(1 - enter) * -6 + exit * 9 + tilt}deg) scale(${0.9 + 0.1 * enter})`,
+        transformOrigin: "50% 60%",
       }}
     >
       <div style={{ position: "relative", width: sw, height: sh, borderRadius: 98, overflow: "hidden", background: C.page }}>
-        <div style={{ width: 390, height: 844, transform: `scale(${PS})`, transformOrigin: "0 0", position: "relative" }}>
+        <div style={{ position: "absolute", left: 0, top: 0, width: 390, height: 844, transform: `scale(${PS})`, transformOrigin: "0 0" }}>
           <PhoneApp f={f} />
         </div>
-        <div
-          style={{
-            position: "absolute",
-            top: 14,
-            left: "50%",
-            marginLeft: -62,
-            width: 124,
-            height: 36,
-            borderRadius: 20,
-            background: "#05080C",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: 12,
-            left: "50%",
-            marginLeft: -70,
-            width: 140,
-            height: 5,
-            borderRadius: 3,
-            background: "rgba(6,16,35,0.85)",
-          }}
-        />
+        <div style={{ position: "absolute", top: 14, left: "50%", marginLeft: -62, width: 124, height: 36, borderRadius: 20, background: "#05080C" }} />
+        <div style={{ position: "absolute", bottom: 12, left: "50%", marginLeft: -70, width: 140, height: 5, borderRadius: 3, background: "rgba(6,16,35,0.85)", opacity: 0 }} />
       </div>
     </div>
   );
 };
 
-/* ------------------------------------------------------------------ */
-/* Text                                                                */
-/* ------------------------------------------------------------------ */
-const Em: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span style={{ color: C.red }}>{children}</span>
-);
+/* ----------------------------- captions ----------------------------- */
+const Em: React.FC<{ children: React.ReactNode }> = ({ children }) => <span style={{ color: C.red }}>{children}</span>;
 
-const CAPTIONS: { a: number; b: number; title: React.ReactNode; sub: string }[] = [
-  { a: 186, b: 328, title: <>Payments <Em>log themselves</Em></>, sub: "CashNest reads the bank message for you." },
-  { a: 328, b: 470, title: <>Confirm in <Em>one tap</Em></>, sub: "Amount, merchant and category, filled in." },
-  { a: 470, b: 546, title: <>Saved to <Em>Expenses</Em></>, sub: "No typing. No spreadsheets." },
-  { a: 546, b: 700, title: <>Split <Em>any bill</Em></>, sub: "Add tax and tip. Even or custom." },
-  { a: 700, b: 860, title: <>Everyone gets <Em>their number</Em></>, sub: "Even to the cent, tax and tip included." },
-  { a: 860, b: 948, title: <>Split <Em>saved</Em></>, sub: "Notify your friends in one tap." },
+const CAPTIONS: { a: number; b: number; node: React.ReactNode }[] = [
+  { a: 8, b: 58, node: <>SMS <Em>arrives</Em></> },
+  { a: 58, b: 102, node: <>CashNest <Em>detects</Em> it</> },
+  { a: 102, b: 192, node: <>Straight to <Em>Home</Em></> },
+  { a: 192, b: 302, node: <>Every <Em>detail</Em>, saved</> },
 ];
 
-const Caption: React.FC<{ f: number }> = ({ f }) => (
-  <>
-    {CAPTIONS.map((c, i) => {
-      const inT = prog(f, c.a, c.a + 16);
-      const outT = prog(f, c.b - 10, c.b, easeInOut);
-      const o = Math.min(inT, 1 - outT);
-      if (o <= 0.001) return null;
-      return (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            top: 92,
-            left: 0,
-            width: W,
-            textAlign: "center",
-            opacity: o,
-            transform: `translateY(${(1 - inT) * 26 - outT * 14}px)`,
-          }}
-        >
-          <div style={{ ...inter(74, 600, -2.4), lineHeight: 1.1 }}>{c.title}</div>
-          <div style={{ ...inter(36, 400, -0.5, ink(0.55)), marginTop: 14 }}>{c.sub}</div>
-        </div>
-      );
-    })}
-  </>
-);
+const Captions: React.FC<{ f: number }> = ({ f }) => {
+  const sp = useSpring();
+  return (
+    <>
+      {CAPTIONS.map((c, i) => {
+        if (f < c.a || f > c.b + 2) return null;
+        const t = sp(f, c.a);
+        const out = prog(f, c.b - 6, c.b, easeInOut);
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top: 120,
+              width: W,
+              textAlign: "center",
+              opacity: clamp01(t * 2) * (1 - out),
+              transform: `translateY(${(1 - t) * 34 - out * 20}px) scale(${0.86 + 0.14 * t})`,
+              ...inter(92, 600, -3.2),
+              lineHeight: 1.05,
+            }}
+          >
+            {c.node}
+          </div>
+        );
+      })}
+    </>
+  );
+};
 
-/* ------------------------------------------------------------------ */
-/* Composition                                                         */
-/* ------------------------------------------------------------------ */
+/* ----------------------------- composition ----------------------------- */
 export const Promo: React.FC = () => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const sp = (start: number, cfg = { damping: 11, stiffness: 160, mass: 0.6 }) =>
+    spring({ frame: f - start, fps, config: cfg });
 
-  // ---- logo: splash position -> header -> (hidden) -> outro
-  const toHook = prog(f, 96, 134, easeInOut);
-  const hideLogo = prog(f, 172, 196, easeInOut);
-  const outroLogo = prog(f, T.outro + 4, T.outro + 40);
-  const splashSize = 252 * SPLASH_SCALE;
-  const logoSize = splashSize + (250 - splashSize) * toHook;
-  const logoCy = 880 + (250 - 880) * toHook;
-  const logoOpacity =
-    f < 190
-      ? logoFade(f, fps) * (1 - hideLogo)
-      : outroLogo;
-  const oSize = 470;
-  const outroSize = f >= 190 ? oSize : logoSize;
-  const outroCy = f >= 190 ? 650 + (1 - outroLogo) * 40 : logoCy;
-
-  // ---- splash CTA pill
-  const pillOpacity = bottomFade(f, fps) * (1 - prog(f, 84, 104, easeInOut));
-  const pillPressed = bump(f, T.splashPress, 12);
-  const pillY = 1824 + prog(f, 84, 104, easeInOut) * 80;
-
-  // ---- hook headline
-  const hookIn = prog(f, T.hookIn, T.hookIn + 20);
-  const hookOut = prog(f, 168, 186, easeInOut);
-  const hook = Math.min(hookIn, 1 - hookOut);
-
-  // ---- phone
-  const phoneEnter = prog(f, ...T.phoneIn);
-  const phoneExit = prog(f, ...T.phoneOut, easeInOut);
-  const phoneY = (1 - phoneEnter) * 1800 + phoneExit * 1900;
-
-  // ---- outro
-  const outroText = prog(f, T.outro + 22, T.outro + 44);
-  const outroCta = prog(f, T.outro + 38, T.outro + 60);
-  const ctaPress = bump(f, T.outro + 86, 12);
+  const phoneVisible = f < T.phoneOut[1];
+  const logoT = sp(T.outro);
+  const textT = sp(T.outro + 10);
+  const pillT = sp(T.outro + 20);
+  const press = bump(f, T.outro + 84, 12);
 
   return (
     <AbsoluteFill style={{ background: C.splash, overflow: "hidden" }}>
       <Fonts />
-      <IconOrbit cx={W / 2} cy={388 * SPLASH_SCALE} scale={SPLASH_SCALE} speed={1.6} />
+      <IconOrbit cx={W / 2} cy={388 * SPLASH_SCALE} scale={SPLASH_SCALE} speed={1.8} />
 
-      {/* logo */}
-      {logoOpacity > 0.001 && (
-        <div
-          style={{
-            position: "absolute",
-            left: W / 2 - outroSize / 2,
-            top: outroCy - outroSize / 2,
-            opacity: logoOpacity,
-          }}
-        >
-          <Logo size={outroSize} />
-        </div>
-      )}
+      {phoneVisible && <Captions f={f} />}
+      {phoneVisible && <Phone f={f} />}
 
-      {/* splash CTA */}
-      {pillOpacity > 0.001 && (
-        <div
-          style={{
-            position: "absolute",
-            left: W / 2,
-            top: pillY,
-            opacity: pillOpacity,
-            transform: `translate(-50%, -50%) scale(${SPLASH_SCALE})`,
-          }}
-        >
-          <StartPill width={362} pressed={pillPressed} />
-        </div>
-      )}
-
-      {/* hook */}
-      {hook > 0.001 && (
-        <div
-          style={{
-            position: "absolute",
-            top: 470,
-            width: W,
-            textAlign: "center",
-            opacity: hook,
-            transform: `translateY(${(1 - hookIn) * 30 - hookOut * 20}px)`,
-          }}
-        >
-          <div style={{ ...inter(112, 600, -4), lineHeight: 1.04 }}>Expenses that</div>
-          <div style={{ ...inter(112, 600, -4, C.red), lineHeight: 1.04 }}>add themselves.</div>
-          <div style={{ ...inter(42, 400, -0.6, ink(0.55)), marginTop: 34 }}>
-            And splits that settle themselves.
-          </div>
-        </div>
-      )}
-
-      {/* captions + phone */}
-      <Caption f={f} />
-      {phoneEnter > 0 && phoneExit < 1 && <Phone f={f} y={phoneY} />}
-
-      {/* outro */}
-      {outroText > 0.001 && (
-        <div
-          style={{
-            position: "absolute",
-            top: 960,
-            width: W,
-            textAlign: "center",
-            opacity: outroText,
-            transform: `translateY(${(1 - outroText) * 30}px)`,
-          }}
-        >
-          <div style={{ ...inter(88, 600, -3), lineHeight: 1.06 }}>Auto expenses.</div>
-          <div style={{ ...inter(88, 600, -3, C.red), lineHeight: 1.06 }}>Effortless splits.</div>
-        </div>
-      )}
-      {outroCta > 0.001 && (
+      {f >= T.outro && (
         <>
           <div
             style={{
               position: "absolute",
-              left: W / 2,
-              top: 1500,
-              opacity: outroCta,
-              transform: `translate(-50%, -50%) translateY(${(1 - outroCta) * 40}px) scale(${SPLASH_SCALE})`,
+              left: W / 2 - 260,
+              top: 700 - 260,
+              opacity: clamp01(logoT * 1.5),
+              transform: `scale(${0.5 + 0.5 * logoT})`,
             }}
           >
-            <StartPill width={300} label="Get CashNest" pressed={ctaPress} />
+            <Logo size={520} />
           </div>
           <div
             style={{
               position: "absolute",
-              top: 1620,
+              top: 1000,
               width: W,
               textAlign: "center",
-              opacity: outroCta,
+              opacity: clamp01(textT * 1.6),
+              transform: `translateY(${(1 - textT) * 40}px) scale(${0.9 + 0.1 * textT})`,
+            }}
+          >
+            <div style={{ ...inter(92, 600, -3.2), lineHeight: 1.05 }}>Payments that</div>
+            <div style={{ ...inter(92, 600, -3.2, C.red), lineHeight: 1.05 }}>log themselves.</div>
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              left: W / 2,
+              top: 1480,
+              opacity: clamp01(pillT * 1.6),
+              transform: `translate(-50%, -50%) translateY(${(1 - pillT) * 50}px) scale(${SPLASH_SCALE * (0.8 + 0.2 * pillT)})`,
+            }}
+          >
+            <StartPill width={300} label="Get CashNest" pressed={press} />
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              top: 1600,
+              width: W,
+              textAlign: "center",
+              opacity: clamp01(pillT * 1.6),
               ...inter(34, 400, -0.4, ink(0.55)),
             }}
           >

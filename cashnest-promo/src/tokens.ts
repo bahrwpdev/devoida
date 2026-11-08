@@ -67,3 +67,7 @@ export const prog = (
 export const FPS = 30;
 export const W = 1080;
 export const H = 1920;
+
+export const money = (v: number) =>
+  "$" +
+  v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -629,7 +629,9 @@ export const Handle: React.FC = () => (
 );
 
 /** iOS-style status bar inside the phone screen (47 high). */
-export const StatusBar: React.FC = () => (
+export const StatusBar: React.FC<{ light?: boolean }> = ({ light }) => {
+  const col = light ? "#FFFFFF" : C.inkDeep;
+  return (
   <div
     style={{
       height: 47,
@@ -640,18 +642,19 @@ export const StatusBar: React.FC = () => (
       boxSizing: "border-box",
     }}
   >
-    <div style={inter(15, 600, -0.2, C.inkDeep)}>9:41</div>
+    <div style={inter(15, 600, -0.2, col)}>9:41</div>
     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
       <svg width="17" height="11" viewBox="0 0 17 11">
         {[0, 1, 2, 3].map((i) => (
-          <rect key={i} x={i * 4.5} y={8 - i * 2.6} width="3" height={3 + i * 2.6} rx="0.8" fill={C.inkDeep} />
+          <rect key={i} x={i * 4.5} y={8 - i * 2.6} width="3" height={3 + i * 2.6} rx="0.8" fill={col} />
         ))}
       </svg>
       <svg width="25" height="12" viewBox="0 0 25 12">
-        <rect x="0.5" y="0.5" width="21" height="11" rx="3.2" fill="none" stroke={C.inkDeep} opacity="0.4" />
-        <rect x="2" y="2" width="18" height="8" rx="2" fill={C.inkDeep} />
-        <rect x="22.5" y="4" width="1.8" height="4" rx="0.9" fill={C.inkDeep} opacity="0.4" />
+        <rect x="0.5" y="0.5" width="21" height="11" rx="3.2" fill="none" stroke={col} opacity="0.4" />
+        <rect x="2" y="2" width="18" height="8" rx="2" fill={col} />
+        <rect x="22.5" y="4" width="1.8" height="4" rx="0.9" fill={col} opacity="0.4" />
       </svg>
     </div>
   </div>
 );
+};
