@@ -65,8 +65,9 @@ export const prog = (
 ) => curve(clamp01((f - a) / (b - a)));
 
 export const FPS = 30;
-export const W = 1080;
-export const H = 1920;
+/** Screen-only output: an iPhone 390x844 logical screen at 3x. */
+export const W = 1170;
+export const H = 2532;
 
 export const money = (v: number) =>
   "$" +
