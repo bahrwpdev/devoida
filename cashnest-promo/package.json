@@ -5,8 +5,8 @@
   "description": "CashNest promo video (Remotion). Standalone, not part of the app build.",
   "scripts": {
     "studio": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts Promo out/cashnest-promo.mp4",
-    "still": "remotion still src/index.ts Promo"
+    "render": "remotion render src/index.ts Part1 out/overview-part1.mp4",
+    "still": "remotion still src/index.ts Part1"
   },
   "dependencies": {
     "@remotion/cli": "4.0.290",

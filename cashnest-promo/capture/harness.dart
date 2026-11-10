@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -82,7 +83,9 @@ Future<GlobalKey> pumpScreen(
   final app = MaterialApp(
     debugShowCheckedModeBanner: false,
     theme: AppTheme.newTheme,
-    home: RepaintBoundary(key: key, child: screen),
+    // the boundary wraps the whole app, so sheets, dialogs and popups are captured too
+    builder: (context, child) => RepaintBoundary(key: key, child: child),
+    home: screen,
   );
   await tester.pumpWidget(
       providers.isEmpty ? app : MultiProvider(providers: providers, child: app));
@@ -123,4 +126,67 @@ Future<void> finish(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());
   await tester.pump(const Duration(seconds: 6));
   debugDefaultTargetPlatformOverride = null;
+}
+
+/// Records one continuous clip: every frame is saved, and taps/marks are logged
+/// (in output pixels) so the video can draw tap markers and time the scenes.
+class Rec {
+  Rec(this.tester, this.key, this.name);
+  final WidgetTester tester;
+  final GlobalKey key;
+  final String name;
+  int frame = 0;
+  final List<Map<String, dynamic>> events = [];
+
+  void mark(String label, [Offset? at]) => events.add({
+        'name': label,
+        'frame': frame,
+        if (at != null) 'x': (at.dx * kDpr).round(),
+        if (at != null) 'y': (at.dy * kDpr).round(),
+      });
+
+  /// Advances [n] frames (1/30 s each) and saves each. A tiny real-time wait per
+  /// frame lets real async work (file/network failures) finish.
+  Future<void> frames(int n) async {
+    for (var i = 0; i < n; i++) {
+      await tester.pump(const Duration(milliseconds: 1000 ~/ 30));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 3)));
+      await shot(tester, key, name, frame++);
+      final ex = tester.takeException();
+      // ignore: avoid_print
+      if (ex != null) print('EXCEPTION @$frame: ${ex.toString().split('\n').first}');
+    }
+  }
+
+  Future<void> tap(String label, Finder f) async {
+    final c = tester.getCenter(f.first);
+    mark(label, c);
+    await tester.tapAt(c);
+  }
+
+  Future<void> tapAt(String label, Offset c) async {
+    mark(label, c);
+    await tester.tapAt(c);
+  }
+
+  /// Types [text] into [f] one character at a time, [every] frames apart.
+  Future<void> type(Finder f, String text, {int every = 2}) async {
+    for (var i = 1; i <= text.length; i++) {
+      await tester.enterText(f.first, text.substring(0, i));
+      await frames(every);
+    }
+  }
+
+  /// A finger drag of [dy] logical px (negative = scroll down) over [steps] frames.
+  Future<void> drag(Finder f, double dy, int steps) async {
+    final g = await tester.startGesture(tester.getCenter(f.first));
+    for (var i = 0; i < steps; i++) {
+      await g.moveBy(Offset(0, dy / steps));
+      await frames(1);
+    }
+    await g.up();
+  }
+
+  void save() => File('$kOut/${name}_events.json').writeAsStringSync(
+      '${const JsonEncoder.withIndent(' ').convert(events)}\n');
 }

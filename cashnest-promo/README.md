@@ -1,40 +1,29 @@
-# CashNest promo video
+# CashNest promo videos
 
-A standalone Remotion project. It is not part of the app build.
+A standalone Remotion project, not part of the app build. Screen only: no device
+frame. Output is 1170x2532 (a 390x844 phone screen at 3x), 30 fps, silent, ready
+for a phone mockup and a voice-over.
 
-**Output:** `cashnest-promo.mp4`, 1170x2532 (an iPhone 390x844 screen at 3x), 30 fps, 15 s.
-Screen only: no device frame, no captions, no background. Silent. It is meant to
-be dropped into a phone mockup.
+Everything inside the app is the app's own rendering. The frames come from the
+real Flutter screens (see `capture/README.md`), so components, colours, fonts,
+icons and motion are exact. Only the Android notification and the status bar are
+drawn here.
 
-Everything inside the app is the app's own rendering. The frames in `public/seq`
-come from the real Flutter screens (see `capture/README.md`), so components,
-colours, fonts and icons are exact. Only the OS lock screen (SMS and detection
-notification) and the status bar are drawn here, in the brand palette and with
-the current app icon.
+## Overview video, part 1 (0:00 to 0:32)
 
-## Run
+`npm run render` writes `out/overview-part1.mp4` (also committed as
+`overview-part1.mp4`).
 
-```bash
-npm install
-npm run studio     # live preview
-npm run render     # writes out/cashnest-promo.mp4
-```
-
-`public/seq` is not committed (about 70 MB of PNG frames): regenerate it with the
-capture step, or ask for the frames.
-
-## Story
-
-| Frames | Scene |
+| Time | Scene |
 |---|---|
-| 0-60 | A bank SMS lands on the lock screen |
-| 58-96 | CashNest's "Payment detected" notification appears under it |
-| 90-112 | Tap: the lock screen zooms through into the real Home |
-| 124-188 | The Starbucks expense pops into Recent transactions, totals update |
-| 188-296 | Tap the row: radial reveal into the real Expense details |
-| 296-450 | Zoom-through into the real splash: logo, icon orbit, "Let's Start" |
+| 0:00 | Real Home: header, hero card, then Recent transactions reveal one by one |
+| 0:07 | Android notification "Payment detected, add it now?" flips to "Payment Saved"; the Starbucks expense lands and the totals update |
+| 0:17 | Tap Splits: the nav pill glides over and the Splits list reveals |
+| 0:19 | Tap "+": New split. Name, amount, tax, tip, two friends, each share appears |
+| 0:27 | Save Bill & Notify: the Notify sheet with WhatsApp and SMS for each friend, then Done |
 
-Timings are the `T` object and the camera moves the `CAM` table in `src/Promo.tsx`.
+Timings are the `BANNER` object and the `CAM` camera table in `src/Part1.tsx`;
+tap markers come from `src/part1.events.json`, written by the capture.
+
+`public/seq` (about 240 MB of PNG frames) is not committed: regenerate it with the capture step.
 Colours are encoded as BT.709 with PNG frames (see `remotion.config.ts`).
-
-The status bar can be removed by deleting the block marked "status bar" in `Promo.tsx`.

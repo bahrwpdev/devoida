@@ -67,7 +67,27 @@ class FakeSplits extends ChangeNotifier implements SplitProvider {
   @override
   bool get hasFreshData => true;
   @override
+  bool get hasLocalDataLoaded => true;
+  @override
+  bool get isLoading => false;
+  @override
+  bool get hasError => false;
+  @override
+  String? get errorMessage => null;
+  @override
   Future<void> reloadForCurrentUser() async {}
+  @override
+  Future<void> reloadSplits() async {}
+  @override
+  Future<app_split.Split> addSplit(app_split.Split split,
+      {ExpenseProvider? expenseProvider,
+      BudgetProvider? budgetProvider,
+      BudgetCycleProvider? budgetCycleProvider,
+      Map<String, String>? phoneNumbers}) async {
+    list = [split, ...list];
+    notifyListeners();
+    return split;
+  }
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -166,6 +186,8 @@ class FakeBills extends ChangeNotifier implements RecurringBillProvider {
 
 class FakeSubscription extends ChangeNotifier implements SubscriptionProvider {
   @override
+  Future<void> loadSubscription({bool skipAutoTrialCreation = false}) async {}
+  @override
   bool get isInitialized => true;
   @override
   bool get isLoading => false;
@@ -191,6 +213,10 @@ class FakeSubscription extends ChangeNotifier implements SubscriptionProvider {
 
 class FakeUser extends ChangeNotifier implements UserProvider {
   @override
+  Future<void> loadAccountPhone() async {}
+  @override
+  Future<String> ensureAccountPhone() async => '+15551230100';
+  @override
   bool get isAccountSwitchCleanupPending => false;
   @override
   bool get isInitialized => true;
@@ -205,6 +231,8 @@ class FakeProfile extends ChangeNotifier implements ProfileProvider {
   String get name => 'Rashad';
   @override
   String get username => 'rashad';
+  @override
+  int? get userId => 1;
   @override
   String? get profilePicture => null;
   @override
