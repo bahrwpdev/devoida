@@ -16,11 +16,13 @@ No zoom, no tap markers.
 
 | Scene | What happens |
 |---|---|
-| Home | The real Home reveals: header, hero card, Recent transactions one by one |
+| Home | Home loads for the first time: header, hero card, budget strip, then each row stacking in one above the other, the round button last |
 | Detecting | The app's own popups: "Payment detected", then "Payment saved". The Starbucks expense lands and the totals update |
 | Expense details | Tap the new row: the details load component by component, with the location |
 | Splits | The Splits list, "+", New split typed end to end, the Notify sheet with WhatsApp and SMS, Done |
 | Bills | The Bills list with due dates and "Pay", then a bill's details and payment history |
+
+The nav bar is the app's own: it stays visible on the tab screens and on the expense and bill details (as in the app), and slides away for New split and the Notify sheet.
 
 Whenever a screen opens, its components load one by one over the page background,
 header first, like the splash (`src/Reveal.tsx`); the real frames play before and

@@ -21,7 +21,7 @@ export const Overview: React.FC = () => {
       {item.kind === "real" ? (
         <Img src={frameSrc(item.a + t)} style={{ position: "absolute", left: 0, top: 0, width: W, height: H }} />
       ) : (
-        <Reveal settled={item.settled} units={item.units} bottom={item.bottom} t={t} under={item.under} rows={item.rows} />
+        <Reveal settled={item.settled} base={item.base} units={item.units} bottom={item.bottom} t={t} under={item.under} rows={item.rows} fabs={item.fabs} />
       )}
       {/* the status bar stays put (delete this block if your mockup has its own) */}
       <div style={{ position: "absolute", left: 0, top: 0, width: 390, height: 47, transform: "scale(3)", transformOrigin: "0 0" }}>

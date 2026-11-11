@@ -5,6 +5,8 @@ The video does not redraw the app. `public/seq/tour/` holds PNG frames (60 fps,
 of the cashnest app, driven by one Flutter widget test with fake data and scripted
 taps, typing and scrolling. Nothing in the cashnest repo is changed.
 
+The test builds a shell like the real one: the body extends behind the nav bar, each tab has its own Navigator, and the nav bar slides away only when a screen or sheet asks for it (as the real screens do).
+
 `tour_test.dart` plays: Home (real staged reveal), the app's own popups ("Payment
 detected", "Payment saved"), the new expense landing, its details with the location,
 the nav pill to Splits, the Splits list, "+", the whole New split flow, the Notify
@@ -38,6 +40,8 @@ cp /tmp/promo_seq/tour_events.json src/tour.events.json
 - The Home "Location detection" card is hidden: the state of a user who already turned automatic location on.
 - `HomeScreenState.of` returns a detached state outside the real shell, so "+" and row taps can push screens.
 - New split carries phone numbers for the typed friends: stands in for picking them from contacts, so the Notify sheet shows SMS and WhatsApp.
+- The Home shortcuts panel (Bills / Goals / Assets) labels use Inter: they set no font, and the test environment has no platform default font.
+- The round buttons can be hidden for one frame (a flag in `bubble_fab.dart`), so each tab screen's components load first and the button pops in last.
 - A bill's Payment history returns demo payments (the real call needs the network).
 
 ## Known quirks

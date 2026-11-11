@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import 'package:cashnest/constants/app_theme.dart';
+import 'package:cashnest/screens/home_screen.dart' show captureNavVisible;
+import 'package:cashnest/widgets/ui/bubble_fab.dart' show captureHideFabs;
 import 'package:cashnest/providers/budget_cycle_provider.dart';
 import 'package:cashnest/providers/budget_provider.dart';
 import 'package:cashnest/providers/currency_provider.dart';
@@ -196,25 +198,42 @@ class Rec {
   /// Marks a screen as fully loaded and writes the rectangles of its components
   /// (white cards and rows), in output pixels, so the video can load them one by
   /// one. [bottom] is the logical y where fixed bottom bars begin.
-  void settled(String screen, {double bottom = 760}) {
+  Future<void> settled(String screen, {double bottom = 760}) async {
     final units = <Rect>[];
+    final fabs = <Rect>[];
+    Rect? rectOf(Element e) {
+      final ro = e.renderObject;
+      if (ro is RenderBox && ro.hasSize && ro.attached) return ro.localToGlobal(Offset.zero) & ro.size;
+      return null;
+    }
+
     void visit(Element e) {
       final w = e.widget;
       Decoration? d;
       if (w is Container) d = w.decoration;
       if (w is DecoratedBox) d = w.decoration;
-      if (d is BoxDecoration && d.color != null && d.color!.toARGB32() == 0xFFFFFFFF) {
+      if (d is BoxDecoration && d.color != null) {
+        final c = d.color!.toARGB32();
         final br = d.borderRadius;
-        if (br is BorderRadius && br.topLeft.x >= 10 && br.topLeft.x <= 16) {
-          final ro = e.renderObject;
-          if (ro is RenderBox && ro.hasSize && ro.attached) {
-            final r = ro.localToGlobal(Offset.zero) & ro.size;
-            if (r.width >= 250 && r.height >= 36 && r.top >= 40 && r.bottom <= bottom + 6) units.add(r);
-          }
+        final rad = br is BorderRadius ? br.topLeft.x : 0.0;
+        // white cards and rows, the space-blue hero card, the red budget strip
+        final isCard = (c == 0xFFFFFFFF && rad >= 10 && rad <= 16) ||
+            (c == 0xFF112D41 && rad >= 10 && rad <= 16) ||
+            (c == 0xFFFF3B30 && rad >= 10 && rad <= 40);
+        if (isCard) {
+          final r = rectOf(e);
+          if (r != null && r.width >= 250 && r.height >= 36 && r.height <= 700 && r.top >= 40 && r.bottom <= bottom + 6) units.add(r);
         }
+      }
+      // the floating round buttons ("+" and the Home quick-actions button)
+      final n = w.runtimeType.toString();
+      if (n == 'BubbleFab' || n == '_FabBubbleButton') {
+        final r = rectOf(e);
+        if (r != null) fabs.add(r);
       }
       e.visitChildren(visit);
     }
+
     tester.binding.rootElement!.visitChildren(visit);
     // outermost only, top to bottom
     final outer = units
@@ -226,11 +245,24 @@ class Rec {
       if (merged.isNotEmpty && (merged.last.top - r.top).abs() < 2 && (merged.last.bottom - r.bottom).abs() < 2) continue;
       merged.add(r);
     }
+    List<int> px(Rect r) => [(r.left * kDpr).round(), (r.top * kDpr).round(), (r.width * kDpr).round(), (r.height * kDpr).round()];
+    final settledFrame = frame - 1;
+    // one more frame with the round buttons hidden: the video loads the screen's
+    // components from it and pops the buttons in last
+    captureHideFabs.value = true;
+    await frames(2);
+    final noFabFrame = frame - 1;
+    captureHideFabs.value = false;
+    await frames(2);
     events.add({
       'name': 'settled:$screen',
-      'frame': frame - 1,
+      'frame': settledFrame,
+      'noFabFrame': noFabFrame,
+      'resume': frame - 1,
       'bottom': (bottom * kDpr).round(),
-      'units': [for (final r in merged) [(r.left * kDpr).round(), (r.top * kDpr).round(), (r.width * kDpr).round(), (r.height * kDpr).round()]],
+      'navVisible': captureNavVisible.value,
+      'units': [for (final r in merged) px(r)],
+      'fabs': [for (final r in fabs) px(r)],
     });
   }
 

@@ -4,33 +4,114 @@
   "frame": 0
  },
  {
+  "name": "settled:home",
+  "frame": 1,
+  "noFabFrame": 3,
+  "resume": 5,
+  "bottom": 2280,
+  "navVisible": true,
+  "units": [
+   [
+    48,
+    312,
+    1074,
+    534
+   ],
+   [
+    48,
+    870,
+    1074,
+    108
+   ],
+   [
+    48,
+    1140,
+    1074,
+    150
+   ],
+   [
+    48,
+    1299,
+    1074,
+    150
+   ],
+   [
+    48,
+    1458,
+    1074,
+    150
+   ],
+   [
+    48,
+    1617,
+    1074,
+    150
+   ],
+   [
+    48,
+    1776,
+    1074,
+    150
+   ],
+   [
+    48,
+    1935,
+    1074,
+    150
+   ]
+  ],
+  "fabs": [
+   [
+    912,
+    1914,
+    210,
+    330
+   ]
+  ]
+ },
+ {
   "name": "popupDetected",
-  "frame": 276
+  "frame": 102
  },
  {
   "name": "popupSaved",
-  "frame": 378
+  "frame": 204
  },
  {
   "name": "expenseLands",
-  "frame": 402
+  "frame": 228
  },
  {
   "name": "tapRow",
-  "frame": 558,
+  "frame": 384,
   "x": 319,
   "y": 1191
  },
  {
   "name": "settled:expenseDetails",
-  "frame": 611,
+  "frame": 437,
+  "noFabFrame": 439,
+  "resume": 441,
   "bottom": 2532,
+  "navVisible": true,
   "units": [
+   [
+    -342,
+    312,
+    1074,
+    534
+   ],
    [
     48,
     339,
     1074,
     402
+   ],
+   [
+    -342,
+    870,
+    1074,
+    108
    ],
    [
     48,
@@ -74,28 +155,39 @@
     1074,
     150
    ]
+  ],
+  "fabs": [
+   [
+    522,
+    1914,
+    210,
+    330
+   ]
   ]
  },
  {
   "name": "tapBack",
-  "frame": 804,
+  "frame": 634,
   "x": 117,
   "y": 237
  },
  {
   "name": "backDone",
-  "frame": 846
+  "frame": 676
  },
  {
   "name": "tapSplitsNav",
-  "frame": 846,
+  "frame": 676,
   "x": 720,
   "y": 2391
  },
  {
   "name": "settled:splitsList",
-  "frame": 887,
+  "frame": 717,
+  "noFabFrame": 719,
+  "resume": 721,
   "bottom": 2280,
+  "navVisible": true,
   "units": [
    [
     0,
@@ -121,18 +213,29 @@
     1074,
     150
    ]
+  ],
+  "fabs": [
+   [
+    912,
+    1914,
+    210,
+    330
+   ]
   ]
  },
  {
   "name": "tapFab",
-  "frame": 936,
+  "frame": 770,
   "x": 1017,
-  "y": 1791
+  "y": 2079
  },
  {
   "name": "settled:newSplit",
-  "frame": 983,
+  "frame": 817,
+  "noFabFrame": 819,
+  "resume": 821,
   "bottom": 2268,
+  "navVisible": false,
   "units": [
    [
     -390,
@@ -176,66 +279,77 @@
     1074,
     150
    ]
+  ],
+  "fabs": [
+   [
+    522,
+    1914,
+    210,
+    330
+   ]
   ]
  },
  {
   "name": "tapName",
-  "frame": 1005,
+  "frame": 843,
   "x": 594,
   "y": 417
  },
  {
   "name": "tapAmount",
-  "frame": 1053,
+  "frame": 891,
   "x": 400,
   "y": 876
  },
  {
   "name": "tapTax",
-  "frame": 1087,
+  "frame": 925,
   "x": 258,
   "y": 1173
  },
  {
   "name": "tapTip",
-  "frame": 1134,
+  "frame": 972,
   "x": 258,
   "y": 1341
  },
  {
   "name": "tapNewPerson",
-  "frame": 1223,
+  "frame": 1061,
   "x": 663,
   "y": 1703
  },
  {
   "name": "tapNewPerson",
-  "frame": 1275,
+  "frame": 1113,
   "x": 663,
   "y": 1693
  },
  {
   "name": "tapSave",
-  "frame": 1362,
+  "frame": 1200,
   "x": 745,
   "y": 2382
  },
  {
   "name": "tapDone",
-  "frame": 1572,
+  "frame": 1410,
   "x": 585,
   "y": 2382
  },
  {
   "name": "tapBillsNav",
-  "frame": 1668,
+  "frame": 1506,
   "x": 876,
   "y": 2391
  },
  {
   "name": "settled:billsList",
-  "frame": 1709,
+  "frame": 1547,
+  "noFabFrame": 1549,
+  "resume": 1551,
   "bottom": 2280,
+  "navVisible": true,
   "units": [
    [
     48,
@@ -243,18 +357,29 @@
     1074,
     1236
    ]
+  ],
+  "fabs": [
+   [
+    912,
+    1914,
+    210,
+    330
+   ]
   ]
  },
  {
   "name": "tapBill",
-  "frame": 1740,
+  "frame": 1582,
   "x": 290,
   "y": 516
  },
  {
   "name": "settled:billDetail",
-  "frame": 1793,
+  "frame": 1635,
+  "noFabFrame": 1637,
+  "resume": 1639,
   "bottom": 2532,
+  "navVisible": true,
   "units": [
    [
     -342,
@@ -274,10 +399,18 @@
     1074,
     687
    ]
+  ],
+  "fabs": [
+   [
+    522,
+    1914,
+    210,
+    330
+   ]
   ]
  },
  {
   "name": "end",
-  "frame": 2010
+  "frame": 1856
  }
 ]

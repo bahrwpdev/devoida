@@ -28,6 +28,7 @@ import 'package:cashnest/providers/split_provider.dart';
 import 'package:cashnest/providers/subscription_provider.dart';
 import 'package:cashnest/providers/user_provider.dart';
 import 'package:cashnest/screens/home_dashboard.dart';
+import 'package:cashnest/screens/home_screen.dart' show captureNavVisible;
 import 'package:cashnest/screens/new_split_screen.dart';
 import 'package:cashnest/screens/recurring_bills_screen.dart';
 import 'package:cashnest/services/recurring_bill_service.dart' show captureHistory, BillPaymentHistory;
@@ -74,7 +75,9 @@ app_split.Split _split(String id, String name, double total, List<String> who,
       createdAt: at,
     );
 
-/// The tab shell: the real nav bar around the real tab screens.
+/// The tab shell, like the real one: the body extends behind the nav bar, each tab
+/// has its own Navigator (pushed screens keep the nav bar unless they hide it) and
+/// the nav bar slides away when a screen or sheet asks it to.
 class Shell extends StatefulWidget {
   const Shell({super.key});
   @override
@@ -82,22 +85,41 @@ class Shell extends StatefulWidget {
 }
 
 class ShellState extends State<Shell> {
-  int index = 0;
-  void go(int i) => setState(() => index = i);
+  final ValueNotifier<int> tab = ValueNotifier<int>(0);
+  void go(int i) => tab.value = i;
+
+  Widget _body(int i) => switch (i) {
+        0 => const HomeDashboard(),
+        1 => const SplitBillScreen(),
+        _ => const RecurringBillsScreen(isTab: true),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final Widget body = switch (index) {
-      0 => const HomeDashboard(),
-      1 => const SplitBillScreen(),
-      _ => const RecurringBillsScreen(isTab: true),
-    };
     return Scaffold(
       backgroundColor: AppTheme.pageBackground,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: KeyedSubtree(key: ValueKey(index), child: body),
+      extendBody: true,
+      body: SafeArea(
+        bottom: false,
+        child: Navigator(
+          onGenerateRoute: (_) => MaterialPageRoute(
+            builder: (_) => ValueListenableBuilder<int>(
+              valueListenable: tab,
+              builder: (_, i, __) => AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: KeyedSubtree(key: ValueKey(i), child: _body(i)),
+              ),
+            ),
+          ),
+        ),
       ),
-      bottomNavigationBar: CustomNavigationBar(currentIndex: index, onTap: go),
+      bottomNavigationBar: ValueListenableBuilder<bool>(
+        valueListenable: captureNavVisible,
+        builder: (_, visible, __) => ValueListenableBuilder<int>(
+          valueListenable: tab,
+          builder: (_, i, __) => CustomNavigationBar(currentIndex: i, onTap: go, isVisible: visible),
+        ),
+      ),
     );
   }
 }
@@ -163,14 +185,16 @@ void main() {
     final r = Rec(tester, key, 'tour');
 
     // settle the home reveal off-camera so it starts right as we record
-    for (var i = 0; i < sec(1.7); i++) {
+    for (var i = 0; i < sec(5.0); i++) {
       await tester.pump(const Duration(microseconds: 16667));
     }
     BuildContext ctx() => tester.element(find.byType(Shell));
 
     // 1. Home, then the app detects a payment
     r.mark('start');
-    await r.frames(sec(4.6));
+    await r.frames(2);
+    await r.settled('home');
+    await r.frames(sec(1.6));
     r.mark('popupDetected');
     NotificationUtils.showInfoNotification(ctx(),
         title: 'Payment detected', message: 'USD 6.85 at Starbucks', duration: const Duration(milliseconds: 1500));
@@ -200,7 +224,7 @@ void main() {
     // 2. open the new expense: details with the location
     await r.tap('tapRow', find.text('Starbucks'));
     await r.frames(sec(0.9));
-    r.settled('expenseDetails', bottom: 844);
+    await r.settled('expenseDetails', bottom: 844);
     await r.frames(sec(3.2));
     await r.tap('tapBack', find.byIcon(Icons.arrow_back));
     await r.frames(sec(0.7));
@@ -209,11 +233,11 @@ void main() {
     // 3. Splits: the list, then a new split end to end
     await r.tapAt('tapSplitsNav', const Offset(240, 797));
     await r.frames(sec(0.7));
-    r.settled('splitsList');
+    await r.settled('splitsList');
     await r.frames(sec(0.8));
     await r.tap('tapFab', find.byType(BubbleFab));
     await r.frames(sec(0.8));
-    r.settled('newSplit', bottom: 756);
+    await r.settled('newSplit', bottom: 756);
     await r.frames(sec(0.35));
     await splitFlow(tester, r);
     await r.frames(sec(1.0)); // back on the Splits list, the new split on top
@@ -221,11 +245,11 @@ void main() {
     // 4. Bills: the list, then one bill
     await r.tapAt('tapBillsNav', const Offset(292, 797));
     await r.frames(sec(0.7));
-    r.settled('billsList');
+    await r.settled('billsList');
     await r.frames(sec(0.5));
     await r.tap('tapBill', find.text('Netflix'));
     await r.frames(sec(0.9));
-    r.settled('billDetail', bottom: 844);
+    await r.settled('billDetail', bottom: 844);
     await r.frames(sec(3.6));
     r.mark('end');
     r.save();

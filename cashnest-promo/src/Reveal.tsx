@@ -13,14 +13,24 @@ type Slice = [number, number];
  * header first, each fading in while rising a few pixels. The page ends exactly
  * as the real frame, so the real frames can continue from there.
  */
+const easeOutBack = (t: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+
 export const Reveal: React.FC<{
   settled: number;
+  /** the same frame without the round buttons: the components load from this one */
+  base: number;
   units: number[][];
   bottom: number;
   t: number;
   under?: number;
   rows?: number;
-}> = ({ settled, units, bottom, t, under, rows }) => {
+  /** round buttons: left out of the components and popped in last */
+  fabs?: number[][];
+}> = ({ settled, base, units, bottom, t, under, rows, fabs = [] }) => {
   // components, top to bottom; a tall card can be cut into its rows
   // overlapping rectangles (a card and a box inside it) become one component
   let us: number[][] = [];
@@ -65,7 +75,7 @@ export const Reveal: React.FC<{
         return (
           <Img
             key={i}
-            src={frameSrc(settled)}
+            src={frameSrc(base)}
             style={{
               position: "absolute",
               left: 0,
@@ -79,12 +89,33 @@ export const Reveal: React.FC<{
           />
         );
       })}
+      {/* round buttons pop in after the last component */}
+      {fabs.map(([x, y, w, h], i) => {
+        const p = easeOutBack(clamp01((t - (slices.length + 1) * STAGGER) / DUR));
+        return (
+          <Img
+            key={`fab${i}`}
+            src={frameSrc(settled)}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: W,
+              height: H,
+              opacity: clamp01(p * 2),
+              transform: `scale(${0.6 + 0.4 * p})`,
+              transformOrigin: `${x + w / 2}px ${y + h / 2}px`,
+              clipPath: `inset(${y}px ${W - (x + w)}px ${H - (y + h)}px ${x}px round 40px)`,
+            }}
+          />
+        );
+      })}
       {/* pushed screens: their bottom bar comes in after the last component */}
       {underIdx === undefined && bottom < H && (() => {
         const p = easeOutCubic(clamp01((t - slices.length * STAGGER) / DUR));
         return (
           <Img
-            src={frameSrc(settled)}
+            src={frameSrc(base)}
             style={{ position: "absolute", left: 0, top: 0, width: W, height: H, opacity: p, transform: `translateY(${(1 - p) * 54}px)`, clipPath: `inset(${bottom}px 0 0 0)` }}
           />
         );
