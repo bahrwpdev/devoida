@@ -44,4 +44,12 @@ if "CAPTURE-PATCH" not in s:
     s=s.replace(old,new,1)
     open(p,'w').write(s)
 PY
-grep -n "CAPTURE-PATCH" "$APP/lib/widgets/auto_location_home_card.dart" "$APP/lib/screens/new_split_screen.dart"
+python3 - "$APP/lib/services/recurring_bill_service.dart" <<'PY'
+import sys
+p=sys.argv[1]; s=open(p).read()
+if "CAPTURE-PATCH" not in s:
+    s=s.replace("class BillPaymentHistory {","/// CAPTURE-PATCH: demo payment history (the real call needs the network)\nList<BillPaymentHistory>? captureHistory;\n\nclass BillPaymentHistory {",1)
+    s=s.replace("  Future<List<BillPaymentHistory>> fetchPaymentHistory(String billId) async {","  Future<List<BillPaymentHistory>> fetchPaymentHistory(String billId) async {\n    if (captureHistory != null) return captureHistory!; // CAPTURE-PATCH",1)
+    open(p,'w').write(s)
+PY
+grep -n "CAPTURE-PATCH" "$APP/lib/widgets/auto_location_home_card.dart" "$APP/lib/screens/new_split_screen.dart" "$APP/lib/services/recurring_bill_service.dart"

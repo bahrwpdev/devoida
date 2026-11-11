@@ -130,6 +130,12 @@ Future<void> finish(WidgetTester tester) async {
 
 /// Records one continuous clip: every frame is saved, and taps/marks are logged
 /// (in output pixels) so the video can draw tap markers and time the scenes.
+/// Frames per second of every recording.
+const int kFps = 60;
+
+/// Seconds to frames.
+int sec(double s) => (s * kFps).round();
+
 class Rec {
   Rec(this.tester, this.key, this.name);
   final WidgetTester tester;
@@ -145,11 +151,11 @@ class Rec {
         if (at != null) 'y': (at.dy * kDpr).round(),
       });
 
-  /// Advances [n] frames (1/30 s each) and saves each. A tiny real-time wait per
+  /// Advances [n] frames (1/60 s each) and saves each. A tiny real-time wait per
   /// frame lets real async work (file/network failures) finish.
   Future<void> frames(int n) async {
     for (var i = 0; i < n; i++) {
-      await tester.pump(const Duration(milliseconds: 1000 ~/ 30));
+      await tester.pump(const Duration(microseconds: 16667));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 3)));
       await shot(tester, key, name, frame++);
       final ex = tester.takeException();
@@ -185,6 +191,47 @@ class Rec {
       await frames(1);
     }
     await g.up();
+  }
+
+  /// Marks a screen as fully loaded and writes the rectangles of its components
+  /// (white cards and rows), in output pixels, so the video can load them one by
+  /// one. [bottom] is the logical y where fixed bottom bars begin.
+  void settled(String screen, {double bottom = 760}) {
+    final units = <Rect>[];
+    void visit(Element e) {
+      final w = e.widget;
+      Decoration? d;
+      if (w is Container) d = w.decoration;
+      if (w is DecoratedBox) d = w.decoration;
+      if (d is BoxDecoration && d.color != null && d.color!.toARGB32() == 0xFFFFFFFF) {
+        final br = d.borderRadius;
+        if (br is BorderRadius && br.topLeft.x >= 10 && br.topLeft.x <= 16) {
+          final ro = e.renderObject;
+          if (ro is RenderBox && ro.hasSize && ro.attached) {
+            final r = ro.localToGlobal(Offset.zero) & ro.size;
+            if (r.width >= 250 && r.height >= 36 && r.top >= 40 && r.bottom <= bottom + 6) units.add(r);
+          }
+        }
+      }
+      e.visitChildren(visit);
+    }
+    tester.binding.rootElement!.visitChildren(visit);
+    // outermost only, top to bottom
+    final outer = units
+        .where((a) => !units.any((b) => !identical(a, b) && b.contains(a.topLeft) && b.contains(a.bottomRight) && (b.size.width > a.size.width || b.size.height > a.size.height)))
+        .toList()
+      ..sort((a, b) => a.top.compareTo(b.top));
+    final merged = <Rect>[];
+    for (final r in outer) {
+      if (merged.isNotEmpty && (merged.last.top - r.top).abs() < 2 && (merged.last.bottom - r.bottom).abs() < 2) continue;
+      merged.add(r);
+    }
+    events.add({
+      'name': 'settled:$screen',
+      'frame': frame - 1,
+      'bottom': (bottom * kDpr).round(),
+      'units': [for (final r in merged) [(r.left * kDpr).round(), (r.top * kDpr).round(), (r.width * kDpr).round(), (r.height * kDpr).round()]],
+    });
   }
 
   void save() => File('$kOut/${name}_events.json').writeAsStringSync(

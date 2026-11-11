@@ -1,8 +1,9 @@
 import React from "react";
 import { Composition } from "remotion";
-import { Part1 } from "./Part1";
-import { FPS, H, W } from "./tokens";
+import { Overview } from "./Overview";
+import { TOTAL_FRAMES } from "./timeline";
+import { H, W } from "./tokens";
 
 export const Root: React.FC = () => (
-  <Composition id="Part1" component={Part1} durationInFrames={960} fps={FPS} width={W} height={H} />
+  <Composition id="Overview" component={Overview} durationInFrames={TOTAL_FRAMES} fps={60} width={W} height={H} />
 );

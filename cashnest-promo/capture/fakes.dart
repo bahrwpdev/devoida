@@ -168,18 +168,33 @@ class FakeAssets extends ChangeNotifier implements AssetProvider {
 }
 
 class FakeBills extends ChangeNotifier implements RecurringBillProvider {
+  List<RecurringBill> list = [];
   @override
-  List<RecurringBill> get homeAttentionBills => [];
+  List<RecurringBill> get homeAttentionBills => overdueBills + dueThisWeekBills;
   @override
-  List<RecurringBill> get overdueBills => [];
+  List<RecurringBill> get overdueBills => list.where((b) => b.status == 'active' && (b.nextDueDate?.isBefore(DateTime.now()) ?? false)).toList();
   @override
-  List<RecurringBill> get dueSoonBills => [];
+  List<RecurringBill> get dueSoonBills => dueThisWeekBills;
   @override
-  List<RecurringBill> get dueThisWeekBills => [];
+  List<RecurringBill> get dueThisWeekBills => list.where((b) => b.status == 'active' && (b.nextDueDate?.isAfter(DateTime.now()) ?? false) && b.nextDueDate!.difference(DateTime.now()).inDays <= 7).toList();
   @override
-  List<RecurringBill> get activeBills => [];
+  List<RecurringBill> get activeBills => list.where((b) => b.status == 'active').toList();
+  @override
+  List<RecurringBill> get inactiveBills => list.where((b) => b.status != 'active').toList();
+  @override
+  double get totalDueThisMonth => activeBills.fold(0.0, (s, b) => s + b.estimatedAmount);
+  @override
+  double get totalDueNextMonth => 0;
+  @override
+  bool get isLoading => false;
+  @override
+  bool get hasLoadedOnce => true;
+  @override
+  String? get error => null;
   @override
   Future<void> loadBills() async {}
+  @override
+  Future<void> reloadForCurrentUser() async {}
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -205,6 +220,10 @@ class FakeSubscription extends ChangeNotifier implements SubscriptionProvider {
   int? get trialDaysRemaining => null;
   @override
   bool canCreateGoal(int c) => true;
+  @override
+  bool canCreateRecurringBill(int c) => true;
+  @override
+  bool canCreateSplit() => true;
   @override
   bool canCreateAsset(int c) => true;
   @override
